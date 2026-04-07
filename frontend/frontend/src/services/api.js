@@ -65,7 +65,11 @@ function mapProfile(profileLabel) {
 
 // ─── Assistive APIs ──────────────────────────────────────────────
 
-export async function simplifyText(text, profile, user_id) {
+export async function postSimplify({ text, profile, user_id, enable_dyslexia_support, enable_audio }) {
+  return simplifyText(text, profile, user_id, enable_dyslexia_support, enable_audio);
+}
+
+export async function simplifyText(text, profile, user_id, enable_dyslexia_support = true, enable_audio = false) {
   const userId = user_id || getStoredUserId();
   return request('/assistive/simplify', {
     method: 'POST',
@@ -74,8 +78,8 @@ export async function simplifyText(text, profile, user_id) {
       text,
       profile: mapProfile(profile),
       user_id: userId || undefined,
-      enable_dyslexia_support: true,
-      enable_audio: false,
+      enable_dyslexia_support: !!enable_dyslexia_support,
+      enable_audio: !!enable_audio,
     }),
   });
 }
