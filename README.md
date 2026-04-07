@@ -154,6 +154,153 @@ If you want to host NeuroRead live on the internet, follow this pipeline:
 
 ---
 
+## 🧠 AI Text Simplification & Cognitive Load Scoring
+
+### Overview
+This system improves text accessibility by:
+- Simplifying text using an LLM
+- Measuring difficulty using a cognitive load score
+- Returning structured, UI-friendly output
+
+**Pipeline:**
+Input → Analyze → Select Level → Simplify → Re-analyze → Return
+
+---
+
+### 1. Cognitive Load Scoring
+
+**Score Range:** 0 (easy) → 100 (hard)
+
+**Metrics (Weighted):**
+
+1. **Readability (40%)**
+   - Flesch Reading Ease (0–100)
+   - *Formula:* `readability_load = 1 - (FRE / 100)`
+   - Lower FRE → higher load
+
+2. **Sentence Length (30%)**
+   - Avg words per sentence (spaCy / regex)
+   - *Formula:* `sentence_load = (avg_words - 5) / 30`
+   - Clamped 0–1
+
+3. **Complex Vocabulary (30%)**
+   - difficult_words / total_words
+   - *Formula:* `complex_word_load = ratio / 0.30`
+   - Clamped 0–1
+
+**Final Score:**
+`cognitive_load = 100 × (0.4 × readability_load + 0.3 × sentence_load + 0.3 × complex_word_load)`
+
+**Labels:**
+- `<30` → Low
+- `30–59` → Moderate
+- `≥60` → High
+
+**API Outputs:**
+- `cognitive_load_score`
+- `readability_score`
+- `avg_sentence_length`
+- `complex_word_ratio`
+- `difficulty_label`
+
+---
+
+### 2. AI Text Simplification
+
+**Function:** `simplify_text(text, level)`
+
+**LLM Setup:**
+- **Model:** `llama-3.3-70b-versatile` (Groq)
+- **Temperature:** 0.3
+
+**Levels:**
+- **1** → Very simple
+- **2** → Moderate
+- **3** → Light
+
+**Output (Strict JSON):**
+```json
+{
+  "simplified_text": "...",
+  "bullet_points": ["..."],
+  "definitions": {"...": "..."},
+  "step_by_step_explanation": ["..."]
+}
+```
+
+---
+
+### 3. Level Selection
+
+If not explicitly provided:
+- **High load** → Level 1
+- **Moderate** → Level 2
+- **Low** → Level 3
+
+**Overrides:**
+- `easy_read` / `focus` → Level 1
+- `academic` → Level 3
+- `beginner` → Level 1
+
+---
+
+### 4. Fallbacks
+
+**API Failure:**
+- Split sentences
+- Keep first N
+- Truncate length (more aggressive at level 1)
+
+**Invalid JSON:**
+- Clean response
+- Retry parse
+- Else: Use raw text with empty structured fields
+
+---
+
+### 5. Execution Flow
+
+1. Analyze original text
+2. Select level
+3. Simplify (LLM / fallback)
+4. Analyze simplified text
+5. Return both scores + output
+
+---
+
+### 6. Important Note
+
+- Only **one simplification pass**
+- No retry loop or threshold check
+
+**Flow:** Analyze → Simplify → Analyze → Return
+
+---
+
+### 7. Example Response
+
+```json
+{
+  "simplified_text": "...",
+  "bullet_points": ["..."],
+  "definitions": {"...": "..."},
+  "step_by_step_explanation": ["..."],
+  "original_score": 72.5,
+  "simplified_score": 38.2,
+  "difficulty_reduction": 34.3
+}
+```
+
+---
+
+### TL;DR
+- **Cognitive load** = readability + sentence length + vocab complexity
+- **Simplification** = single LLM call based on level
+- **Metrics** guide before & after, not retries
+
+---
+
 ## 🤝 Contributing
 
 Contributions to improve accessibility or AI features are always welcome! Please create an issue or pull request.
+
